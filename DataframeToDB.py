@@ -1,10 +1,8 @@
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy import Column, Integer, String, Float, Text, BigInteger, Time, Date, DateTime
-# import db
+from sqlalchemy import Column, BigInteger, Boolean, Date, DateTime, Enum, Float, Integer, Interval, LargeBinary, MatchType, Numeric, PickleType, SchemaType, SmallInteger, String, Text, , Time, Unicode, UnicodeText
 
 import pandas as pd
 
@@ -128,6 +126,18 @@ def refactor(dfParam, estrict=False, debug=False):
     return df
 
 def tryGet(variable, key, case=False):
+    """
+    Returns a value depend of if variable has a key, in other case return case
+
+    Parameters:
+        variable : Variable who has a key, prefer list or dict
+        key : is the key for get data in the variable
+        case (optional): value who return when variable has not key
+
+
+    Returns:
+        case or value : the value get of variable if exist or case
+    """
     try:
         var = variable[key]
         return var
@@ -160,7 +170,7 @@ def save(**kwargs):
     attr_dict={'__tablename__': tablename}
 
     if kwargs.get('primary_key', None)==None:
-        attr_dict = {'__tablename__': kwargs.get('tablename', 'default'),'id': Column(Integer, primary_key=True, auto_increment=True)}
+        attr_dict = {'__tablename__': kwargs.get('tablename', 'default'),'idx': Column(Integer, primary_key=True, auto_increment=True)}
 
     qForSample = -1 #despues aceptar parametro porcentaje, ejemplo 30% de los datos
     if kwargs.get('qForSample', False):
@@ -185,49 +195,133 @@ def save(**kwargs):
                 else:
                     attr_dict[col] = Column(Integer)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                    print("Nombre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
             elif custom=="BigInteger":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(BigInteger, primary_key=True, auto_increment=kwargs.get('primary_key', False))
                 else:
                     attr_dict[col] = Column(BigInteger)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                    print("Nombre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
             elif custom=="String":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(String, primary_key=True)
                 else:
                     attr_dict[col] = Column(String)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+                    print("Nombre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
             elif custom=="Text":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Text, primary_key=True)
                 else:
                     attr_dict[col] = Column(Text)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Text, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+                    print("Nombre: {}, Tipo: {}, ColType: Text, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
             elif custom=="Date":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Date, primary_key=True)
                 else:
                     attr_dict[col] = Column(Date)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
+                    print("Nombre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
             elif custom=="Time":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Time, primary_key=True)
                 else:
                     attr_dict[col] = Column(Time)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
+                    print("Nombre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
+            elif custom=="Float":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Float, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Float)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Float".format(col, str(df.dtypes[col])))
             elif custom=="DateTime":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(DateTime, primary_key=True)
                 else:
                     attr_dict[col] = Column(DateTime)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: DateTime".format(col, str(df.dtypes[col])))
+                    print("Nombre: {}, Tipo: {}, ColType: DateTime".format(col, str(df.dtypes[col])))
+            elif custom=="Boolean":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Boolean, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Boolean)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Boolean".format(col, str(df.dtypes[col])))
+            elif custom=="Enum":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Enum, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Enum)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Enum".format(col, str(df.dtypes[col])))
+            elif custom=="Interval":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Interval, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Interval)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Interval".format(col, str(df.dtypes[col])))
+            elif custom=="LargeBinary":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(LargeBinary, primary_key=True)
+                else:
+                    attr_dict[col] = Column(LargeBinary)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: LargeBinary".format(col, str(df.dtypes[col])))
+            elif custom=="MatchType":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(MatchType, primary_key=True)
+                else:
+                    attr_dict[col] = Column(MatchType)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: MatchType".format(col, str(df.dtypes[col])))
+            elif custom=="Numeric":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Numeric, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Numeric)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Numeric".format(col, str(df.dtypes[col])))
+            elif custom=="PickleType":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(PickleType, primary_key=True)
+                else:
+                    attr_dict[col] = Column(PickleType)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: PickleType".format(col, str(df.dtypes[col])))
+            elif custom=="SchemaType":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(SchemaType, primary_key=True)
+                else:
+                    attr_dict[col] = Column(SchemaType)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: SchemaType".format(col, str(df.dtypes[col])))
+            elif custom=="SmallInteger":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(SmallInteger, primary_key=True)
+                else:
+                    attr_dict[col] = Column(SmallInteger)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: SmallInteger".format(col, str(df.dtypes[col])))
+            elif custom=="Unicode":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Unicode, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Unicode)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Unicode".format(col, str(df.dtypes[col])))
+            elif custom=="UnicodeText":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(UnicodeText, primary_key=True)
+                else:
+                    attr_dict[col] = Column(UnicodeText)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: UnicodeText".format(col, str(df.dtypes[col])))
             else:
                 if kwargs.get('debug', False):
                     print("Error: no soportado Nombre: {}, Tipo: {}".format(col, str(df.dtypes[col])))
@@ -240,14 +334,22 @@ def save(**kwargs):
                 else:
                     attr_dict[col] = Column(Integer)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                    print("Nombre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
             else:
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(BigInteger, primary_key=True, auto_increment=kwargs.get('primary_key', False))
                 else:
                     attr_dict[col] = Column(BigInteger)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                    print("Nombre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+
+        elif str(df.dtypes[col])=="float64":
+            if kwargs.get('primary_key', None)==col:
+                attr_dict[col] = Column(Float, primary_key=True, auto_increment=kwargs.get('primary_key', False))
+            else:
+                attr_dict[col] = Column(Float)
+            if kwargs.get('debug', False):
+                print("Nombre: {}, Tipo: {}, ColType: Float, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
 
             
         
@@ -258,14 +360,14 @@ def save(**kwargs):
                 else:
                     attr_dict[col] = Column(String)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+                    print("Nombre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
             else:
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Text, primary_key=True)
                 else:
                     attr_dict[col] = Column(Text)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Text, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+                    print("Nombre: {}, Tipo: {}, ColType: Text, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
         elif str(df.dtypes[col])=='datetime64[ns]': #si es date time, puede ser datetime, date or time
             # sample = pd.Timestamp(df[col].sample(1).values[0])
             if df[col].sample(qForSample).apply(lambda x: isDateFromDatetime(x)).all().item():#sample==dt.time(hour=sample.hour, minute=sample.minute, second=sample.microsecond, microsecond=sample.microsecond):#si es time
@@ -274,25 +376,25 @@ def save(**kwargs):
                 else:
                     attr_dict[col] = Column(Date)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
+                    print("Nombre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
             elif df[col].sample(qForSample).apply(lambda x: isTimeFromDatetime(x)).all().item():# sample==dt.date(year=sample.year, month=sample.month, day=sample.day):
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Time, primary_key=True)
                 else:
                     attr_dict[col] = Column(Time)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
+                    print("Nombre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
             else: #dt.datetime(year=sample.year, month=sample.month, day=sample.day, hour=sample.hour, minute=sample.minute, second=sample.microsecond, microsecond=sample.microsecond)
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(DateTime, primary_key=True)
                 else:
                     attr_dict[col] = Column(DateTime)
                 if kwargs.get('debug', False):
-                    print("Nomre: {}, Tipo: {}, ColType: DateTime".format(col, str(df.dtypes[col])))
+                    print("Nombre: {}, Tipo: {}, ColType: DateTime".format(col, str(df.dtypes[col])))
         else:
 
             if kwargs.get('debug', False):
-                print("Nomre: {}, Tipo: {}, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                print("No soportado, Nombre: {}, Tipo: {}, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
 
 
     tabla = type('ClassnameHere', (Base,), attr_dict)
@@ -310,7 +412,8 @@ def save(**kwargs):
         print("it's finished, your pleas were heard")
 
 if __name__ == "__main__":
-    df = pd.read_csv("./dataset/cv19/covid_19_data.csv") 
+    # df = pd.read_csv("./dataset/cv19/covid_19_data.csv") 
+    df = pd.read_csv("./dataset/stroke prediction dataset/healthcare-dataset-stroke-data.csv") 
     df = refactor(df)
     sufix = str(datetime.now().date()).replace('-','')  + str(datetime.now().time()).replace(':', '').replace('.','')
-    save(tablename="test-{}".format(sufix), df=df, debug= True, custom={'ObservationDate':'Text'})
+    save(tablename="test-{}".format(sufix), df=df, debug= True, )#custom={'ObservationDate':'Text'})
