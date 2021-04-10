@@ -90,7 +90,7 @@ def refactor(dfParam, estrict=False, debug=False):
     Returns:
         df (Dataframe):The dataframe which gets refactored.
     """
-    df =dfParam
+    df = dfParam
     df = df.convert_dtypes()
     df = df.fillna(method="pad")
 
@@ -127,7 +127,15 @@ def refactor(dfParam, estrict=False, debug=False):
 
     return df
 
-def toDB(**kwargs):
+def tryGet(variable, key, case=False):
+    try:
+        var = variable[key]
+        return var
+    except:
+        pass
+    return case
+
+def save(**kwargs):
     if str(type(kwargs.get('tablename', False)))!="<class 'str'>":
         raise ValueError("tablename: could be <class 'str'>") 
         return False
@@ -136,18 +144,20 @@ def toDB(**kwargs):
         raise ValueError("df: could be <class 'pandas.core.frame.DataFrame'>") 
         return False
 
+    tablename = kwargs.get('tablename', 'default')
+
     engine = None
 
     if kwargs.get('engine', False):
         engine = kwargs.get('engine', False)
     else:
-        engine = create_engine('sqlite:///productos.sqlite')
+        engine = create_engine('sqlite:///{}.sqlite'.format(tablename))
 
     Session = sessionmaker(bind=engine)
     session = Session() # create a Session
     Base = declarative_base()
 
-    attr_dict={'__tablename__': kwargs.get('tablename', 'default')}
+    attr_dict={'__tablename__': tablename}
 
     if kwargs.get('primary_key', None)==None:
         attr_dict = {'__tablename__': kwargs.get('tablename', 'default'),'id': Column(Integer, primary_key=True, auto_increment=True)}
@@ -167,8 +177,64 @@ def toDB(**kwargs):
     colList = df.columns.to_list()
 
     for col in colList:
-        if str(df.dtypes[col])=="Int64":
-            if df[col].sample(qForSample).apply(lambda x: x<=255).all().item():
+        custom = tryGet(tryGet(kwargs, 'custom'), col)
+        if custom!=False:
+            if custom=="Integer":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Integer, primary_key=True, auto_increment=kwargs.get('primary_key', False))
+                else:
+                    attr_dict[col] = Column(Integer)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+            elif custom=="BigInteger":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(BigInteger, primary_key=True, auto_increment=kwargs.get('primary_key', False))
+                else:
+                    attr_dict[col] = Column(BigInteger)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+            elif custom=="String":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(String, primary_key=True)
+                else:
+                    attr_dict[col] = Column(String)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+            elif custom=="Text":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Text, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Text)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: Text, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+            elif custom=="Date":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Date, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Date)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
+            elif custom=="Time":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(Time, primary_key=True)
+                else:
+                    attr_dict[col] = Column(Time)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
+            elif custom=="DateTime":
+                if kwargs.get('primary_key', None)==col:
+                    attr_dict[col] = Column(DateTime, primary_key=True)
+                else:
+                    attr_dict[col] = Column(DateTime)
+                if kwargs.get('debug', False):
+                    print("Nomre: {}, Tipo: {}, ColType: DateTime".format(col, str(df.dtypes[col])))
+            else:
+                if kwargs.get('debug', False):
+                    print("Error: no soportado Nombre: {}, Tipo: {}".format(col, str(df.dtypes[col])))
+                    return False
+
+        elif str(df.dtypes[col])=="Int64":
+            if df[col].sample(qForSample).apply(lambda x: x<=-2147483648 and x>=2147483647 ).all().item(): #corregir
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Integer, primary_key=True, auto_increment=kwargs.get('primary_key', False))
                 else:
@@ -182,6 +248,8 @@ def toDB(**kwargs):
                     attr_dict[col] = Column(BigInteger)
                 if kwargs.get('debug', False):
                     print("Nomre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+
+            
         
         elif str(df.dtypes[col])=="string":
             if df[col].sample(qForSample).apply(lambda x: len(str(x))<=255).all().item():
@@ -227,18 +295,22 @@ def toDB(**kwargs):
                 print("Nomre: {}, Tipo: {}, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
 
 
-    # attr_dict["q"] = Column(Integer)
-    
-
     tabla = type('ClassnameHere', (Base,), attr_dict)
 
     Base.metadata.create_all(engine)
 
-    SomeRow = tabla(id='2')
-    session.add(SomeRow)
+    if kwargs.get('debug', False):
+        print("starting to save the data in the selected database, you can pray that it does not fail in the meantime")
+    # create rows for insert
+    for index, row in df.iterrows():
+        newRow = tabla(**row.to_dict())
+        session.add(newRow)
     session.commit()
+    if kwargs.get('debug', False):
+        print("it's finished, your pleas were heard")
 
 if __name__ == "__main__":
     df = pd.read_csv("./dataset/cv19/covid_19_data.csv") 
     df = refactor(df)
-    toDB(tablename="test3", df=df, debug= True)
+    sufix = str(datetime.now().date()).replace('-','')  + str(datetime.now().time()).replace(':', '').replace('.','')
+    save(tablename="test-{}".format(sufix), df=df, debug= True, custom={'ObservationDate':'Text'})
