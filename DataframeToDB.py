@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy import Column, BigInteger, Boolean, Date, DateTime, Enum, Float, Integer, Interval, LargeBinary, MatchType, Numeric, PickleType, SchemaType, SmallInteger, String, Text, , Time, Unicode, UnicodeText
+from sqlalchemy import Column, BigInteger, Boolean, Date, DateTime, Enum, Float, Integer, Interval, LargeBinary, Numeric, PickleType, SmallInteger, String, Text, Time, Unicode, UnicodeText #, MatchType, SchemaType
 
 import pandas as pd
 
@@ -146,6 +146,17 @@ def tryGet(variable, key, case=False):
     return case
 
 def save(**kwargs):
+    """
+    Sabe a SqlAlchemy Table in db
+
+    Parameters:
+        table : sqlAlchemy Table
+        engine : is the key for get data in the variable
+        df (Dataframe):The dataframe which is to be saved.
+
+    Returns:
+        boolean : return true or false if save to db
+    """
     if str(type(kwargs.get('tablename', False)))!="<class 'str'>":
         raise ValueError("tablename: could be <class 'str'>") 
         return False
@@ -273,13 +284,14 @@ def save(**kwargs):
                     attr_dict[col] = Column(LargeBinary)
                 if kwargs.get('debug', False):
                     print("Nombre: {}, Tipo: {}, ColType: LargeBinary".format(col, str(df.dtypes[col])))
-            elif custom=="MatchType":
-                if kwargs.get('primary_key', None)==col:
-                    attr_dict[col] = Column(MatchType, primary_key=True)
-                else:
-                    attr_dict[col] = Column(MatchType)
-                if kwargs.get('debug', False):
-                    print("Nombre: {}, Tipo: {}, ColType: MatchType".format(col, str(df.dtypes[col])))
+            # error import
+            # elif custom=="MatchType":
+            #     if kwargs.get('primary_key', None)==col:
+            #         attr_dict[col] = Column(MatchType, primary_key=True)
+            #     else:
+            #         attr_dict[col] = Column(MatchType)
+            #     if kwargs.get('debug', False):
+            #         print("Nombre: {}, Tipo: {}, ColType: MatchType".format(col, str(df.dtypes[col])))
             elif custom=="Numeric":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(Numeric, primary_key=True)
@@ -294,13 +306,14 @@ def save(**kwargs):
                     attr_dict[col] = Column(PickleType)
                 if kwargs.get('debug', False):
                     print("Nombre: {}, Tipo: {}, ColType: PickleType".format(col, str(df.dtypes[col])))
-            elif custom=="SchemaType":
-                if kwargs.get('primary_key', None)==col:
-                    attr_dict[col] = Column(SchemaType, primary_key=True)
-                else:
-                    attr_dict[col] = Column(SchemaType)
-                if kwargs.get('debug', False):
-                    print("Nombre: {}, Tipo: {}, ColType: SchemaType".format(col, str(df.dtypes[col])))
+            # error import
+            # elif custom=="SchemaType":
+            #     if kwargs.get('primary_key', None)==col:
+            #         attr_dict[col] = Column(SchemaType, primary_key=True)
+            #     else:
+            #         attr_dict[col] = Column(SchemaType)
+            #     if kwargs.get('debug', False):
+            #         print("Nombre: {}, Tipo: {}, ColType: SchemaType".format(col, str(df.dtypes[col])))
             elif custom=="SmallInteger":
                 if kwargs.get('primary_key', None)==col:
                     attr_dict[col] = Column(SmallInteger, primary_key=True)
@@ -351,7 +364,15 @@ def save(**kwargs):
             if kwargs.get('debug', False):
                 print("Nombre: {}, Tipo: {}, ColType: Float, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
 
-            
+        elif str(df.dtypes[col])=="boolean":
+            if kwargs.get('primary_key', None)==col:
+                attr_dict[col] = Column(Boolean, primary_key=True, auto_increment=kwargs.get('primary_key', False))
+            else:
+                attr_dict[col] = Column(Boolean)
+            if kwargs.get('debug', False):
+                print("Nombre: {}, Tipo: {}, ColType: Float, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+
+        
         
         elif str(df.dtypes[col])=="string":
             if df[col].sample(qForSample).apply(lambda x: len(str(x))<=255).all().item():
@@ -414,6 +435,7 @@ def save(**kwargs):
 if __name__ == "__main__":
     # df = pd.read_csv("./dataset/cv19/covid_19_data.csv") 
     df = pd.read_csv("./dataset/stroke prediction dataset/healthcare-dataset-stroke-data.csv") 
+    df["bool"] = df["gender"].apply(lambda x: x=="Male")
     df = refactor(df)
     sufix = str(datetime.now().date()).replace('-','')  + str(datetime.now().time()).replace(':', '').replace('.','')
     save(tablename="test-{}".format(sufix), df=df, debug= True, )#custom={'ObservationDate':'Text'})
