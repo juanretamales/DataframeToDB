@@ -188,8 +188,6 @@ class Database:
                 if e.errno != e.errno.EXIST:
                     raise
 
-        
-
 class Tabla:
     def __init__(self, **kwargs):
         if str(type(kwargs.get('Df', False)))!="<class 'pandas.core.frame.DataFrame'>":
@@ -200,7 +198,8 @@ class Tabla:
 
         self.columns=[]
         if tryGet(kwargs, 'Df', False, True):
-            self.columns = [] #convert Df -> Columns
+            self.dataframeToColumnas(kwargs)
+
         if tryGet(kwargs, 'Columns', False, True):
             cols = [isinstance(col, Columna) for col in tryGet(kwargs, 'Columns', [])]
             if np.all(cols):
@@ -213,8 +212,51 @@ class Tabla:
         if self.file==None:
             self.file=os.path.join('.dataframeToDb', str(self.nombre) + ".ToDB")
 
-    def dataframeToColumnas(self):
-        raise ValueError("Not implemented yet") 
+    def dataframeToColumnas(self, kwargs):
+        # raise ValueError("Not implemented yet") 
+        df = tryGet(kwargs, 'Df')
+        qForSample = tryGet(kwargs, 'qForSample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
+        if qForSample<0:
+            raise ValueError("qForSample: could be positive") 
+        if qForSample>len(df):
+            print("Warning, qForSample is more than dataframe length, use length instead")
+            qForSample=len(df)
+        else:
+            qForSample = len(df) if len(df)<=100 else int(len(df) * 0.3)
+
+        colList = df.columns.to_list()
+
+        for col in colList:
+            
+            custom = tryGet(kwargs, 'Custom')
+            type=None
+            #si seteamos algo custom de la columna
+            if tryGet(custom, col, False, True):
+                customCol = tryGet(custom, col)
+                if tryGet(customCol, "Type", False, True):
+                    type=tryGet(customCol, "Type")
+                else:
+                    type = self.checkColType(df, qForSample, kwargs)
+                self.columns.append(
+                    Columna(
+                        colName = tryGet(customCol, "colName", col),
+                        colDfName = tryGet(customCol, "colDfName", col),
+                        Type = type,
+                        PrimaryKey = tryGet(customCol, "PrimaryKey", False),
+                        AutoIncrement = tryGet(customCol, "AutoIncrement", False)
+                    )
+                )
+            else:
+                type = self.checkColType(df, qForSample, kwargs)
+                self.columns.append(
+                    Columna(
+                        colName = col,
+                        Type = type,
+                        colDfName = col,
+                        PrimaryKey = False,
+                        AutoIncrement = False
+                    )
+                )
 
     def getSQLcolumns(self):
         column =[Column(col.colData())for col in self.columas]
@@ -308,6 +350,52 @@ class Tabla:
                 )
             )
 
+    def checkColType(self, df, qForSample, kwargs):
+        if str(df.dtypes[col])=="Int64":
+            if df[col].sample(qForSample).apply(lambda x: x<=-2147483648 and x>=2147483647 ).all().item(): #corregir
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                return "Integer"
+            else:
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: BigInteger, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+                return "BigInteger"
+
+        elif str(df.dtypes[col])=="float64":
+            if kwargs.get('debug', False):
+                print("Nombre: {}, Tipo: {}, ColType: Float, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+            return "Float"
+        elif str(df.dtypes[col])=="boolean":
+            if kwargs.get('debug', False):
+                print("Nombre: {}, Tipo: {}, ColType: Boolean, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
+            return "Boolean"
+        elif str(df.dtypes[col])=="string":
+            if df[col].sample(qForSample).apply(lambda x: len(str(x))<=255).all().item():
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+                return "String"
+            else:
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Text, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
+                return "Text"
+        elif str(df.dtypes[col])=='datetime64[ns]': #si es date time, puede ser datetime, date or time
+            # sample = pd.Timestamp(df[col].sample(1).values[0])
+            if df[col].sample(qForSample).apply(lambda x: isDateFromDatetime(x)).all().item():#sample==dt.time(hour=sample.hour, minute=sample.minute, second=sample.microsecond, microsecond=sample.microsecond):#si es time
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
+                return "Date"
+            elif df[col].sample(qForSample).apply(lambda x: isTimeFromDatetime(x)).all().item():# sample==dt.date(year=sample.year, month=sample.month, day=sample.day):
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
+                return "Time"
+            else: #dt.datetime(year=sample.year, month=sample.month, day=sample.day, hour=sample.hour, minute=sample.minute, second=sample.microsecond, microsecond=sample.microsecond)
+                if kwargs.get('debug', False):
+                    print("Nombre: {}, Tipo: {}, ColType: DateTime".format(col, str(df.dtypes[col])))
+                return "DateTime"
+        else:
+            raise ValueError("Not suported, Name Df: {}, dtype: {}".format(col, str(df.dtypes[col])))
+
+
 
 class Columna:
 
@@ -323,7 +411,7 @@ class Columna:
         #if none dfName is definited, use col_name
         self.colDfName = kwargs.get('colDfName', kwargs.get('colName', None))
         self.type = kwargs.get('Type', None)
-        self.primary = kwargs.get('Primary Key', False)
+        self.primary = kwargs.get('PrimaryKey', False)
 
         if (kwargs.get('type', False)=="Integer" or kwargs.get('type', False)=="BigInteger") and kwargs.get('Auto Increment', False):
             self.ai = True
@@ -337,7 +425,7 @@ class Columna:
         return "{} | {} | {} | {}".format(self.colName, self.type, "Primary Key" if self.primary else '', "Auto Increment" if self.ai else '')
 
     def getDict(self):
-        return {"colName":self.colName, "colDfName":self.colDfName, "Type": self.type, "Primary Key": self.primary, "Auto Increment": self.ai}
+        return {"colName":self.colName, "colDfName":self.colDfName, "Type": self.type, "PrimaryKey": self.primary, "AutoIncrement": self.ai}
 
     def colData(self):
         return (self.colName, self.type, "Primary Key" if self.primary else '', "Auto Increment" if self.ai else '')
