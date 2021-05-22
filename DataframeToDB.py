@@ -11,7 +11,7 @@ import pandas as pd
 
 import datetime as dt
 from datetime import datetime
-import re 
+# import re 
 import numpy as np
 import json
 
@@ -33,22 +33,34 @@ def is_date(string, fuzzy=False):
     except ValueError:
         return False
 
-#copy from fast-to-sql
-def hasDuplicateCols(df, case="insensitive"):
+def hasDuplicateCols(df, case="insensitive", debug=False):
     """
     Returns duplicate column names (case insensitive)
 
     Parameters:
         df (Dataframe):The dataframe which is to be revised.
+        case (str): should be: "insensitive" by default , "strict"(clean special simbols an lower chars) or "sensitive"
 
     Returns:
-        (str): the cleaned String
+        (bool): True if has any duplicate cols, or false in other case
 
     """
-    cols = [c.lower() for c in df.columns]
+    cols=[]
+    #first get cols for each case
+    if case=="strict":
+        cols = [cleanSpecialCharacters(c).lower() for c in df.columns]
+    elif case=="insensitive":
+        cols = [c.lower() for c in df.columns]
+    elif case=="sensitive":
+        cols = [c.lower() for c in df.columns]
     dups = [x for x in cols if cols.count(x) > 1]
-    if dups:
-        raise errors.DuplicateColumns(f"There are duplicate column names. Repeated names are: {dups}. SQL Server dialect requires unique names (case insensitive).")
+
+    if dups!=[]:
+        if debug:
+            print("The duplicate cols: {}".format(','.join(c for c in dups)))
+        return False
+
+    return True
 
 def cleanSpecialCharacters(texto):
     """
@@ -69,6 +81,15 @@ def cleanSpecialCharacters(texto):
 #     return False
 
 def isTimeFromDatetime(fecha):
+    """
+    Review if Datetime has time values
+
+    Parameters:
+        fecha (Datetime): the String who clean of character of valir_chars variable
+
+    Returns:
+        (bool): True if has Time values, or false in other case
+    """
     try:
         if fecha.year!=0 and fecha.month!=0 and fecha.day!=0:
             return True
@@ -77,6 +98,15 @@ def isTimeFromDatetime(fecha):
     return False
 
 def isDateFromDatetime(fecha):
+    """
+    Review if Datetime has Date values
+
+    Parameters:
+        fecha (Datetime): the String who clean of character of valir_chars variable
+
+    Returns:
+        (bool): True if has Date values, or false in other case
+    """
     try:
         if fecha.hour!=0 and fecha.minute!=0 and fecha.microsecond!=0 and fecha.microsecond!=0:
             return True
@@ -1026,15 +1056,3 @@ def toDb(**kwargs):
     if kwargs.get('debug', False):
         print("it's finished, your pleas were heard")
 
-if __name__ == "__main__":
-    # df = pd.read_csv("./dataset/cv19/covid_19_data.csv") 
-    df = pd.read_csv("./dataset/stroke prediction dataset/healthcare-dataset-stroke-data.csv") 
-    df["bool"] = df["gender"].apply(lambda x: x=="Male")
-    df = refactor(df)
-    col = Columna(colName="a", Type="Integer")
-    sufix = str(datetime.now().date()).replace('-','')  + str(datetime.now().time()).replace(':', '').replace('.','')
-    # db = Database("database_Test")
-    table = Tabla(Name="database_Test", Df=df)
-    table.saveToFile()
-    # toDb(tablename="test-{}".format(sufix), df=df, debug= True, )#custom={'ObservationDate':'Text'})
-    # save(tablename="test-{}".format(sufix), df=df, debug= True, )#custom={'ObservationDate':'Text'})
