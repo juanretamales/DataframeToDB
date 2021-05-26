@@ -185,10 +185,13 @@ def tryGet(variable, key, case=False, caseTruth=None):
 
 
 class Database:
-    def __init__(self, name, tablas=[[]]):
-        self.nombre = name
+    def __init__(self, **kwargs):
+        self.nombre = kwargs.get('Name', "NoName")
         # matriz, revisa desde lo mas alto la dependencia para agregar
-        self.tablas=tablas
+        self.tablas=kwargs.get('Table', [])
+        self.file=kwargs.get('File', None)
+        if self.file==None:
+            self.file=os.path.join('.dataframeToDb', str(self.nombre) + ".ToDB")
         # self.folder=None
 
     def addTable(self, tabla):
@@ -237,12 +240,12 @@ class Tabla:
             else:
                 raise ValueError("A column it not a Column type class") 
 
-        self.nombre = kwargs.get('Nombre', "NoName")
+        self.name = kwargs.get('Name', "NoName")
         self.file=kwargs.get('File', None)
         if self.file==None:
-            self.file=os.path.join('.dataframeToDb', str(self.nombre) + ".ToDB")
+            self.file=os.path.join('.dataframeToDb', str(self.name) + ".ToDB")
 
-    def dataframeToColumnas(self, kwargs):
+    def dataframeToColumns(self, **kwargs):
         # raise ValueError("Not implemented yet") 
         df = tryGet(kwargs, 'Df')
         qForSample = tryGet(kwargs, 'qForSample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
@@ -257,6 +260,10 @@ class Tabla:
         colList = df.columns.to_list()
 
         for col in colList:
+            exist = [1 for col in self.columns if col==col.colDfName]
+            if np.array(exist).sum() > 0:
+                print("The column [{}] is already in the table [{}], skip").format(col, self.name)
+                continue
             
             custom = tryGet(kwargs, 'Custom')
             type=None
@@ -266,7 +273,7 @@ class Tabla:
                 if tryGet(customCol, "Type", False, True):
                     type=tryGet(customCol, "Type")
                 else:
-                    type = self.checkColType(df, qForSample, kwargs)
+                    type = self.checkColType(df, col, qForSample, kwargs)
                 self.columns.append(
                     Columna(
                         colName = tryGet(customCol, "colName", col),
@@ -297,7 +304,7 @@ class Tabla:
         return column
 
     def getTable(self):
-        return Table(self.nombre, MetaData(), *self.getSQLcolumns())
+        return Table(self.name, MetaData(), *self.getSQLcolumns())
 
     def getDict(self):
         """
@@ -307,10 +314,10 @@ class Tabla:
             dict : the values of this class in dict format
         """
         return {
-            "Name": self.nombre, 
+            "Name": self.name, 
             "File": self.file,
             "Type": "Table",
-            "Columns": [col.data() for col in self.columns]
+            "Columns": [col.getDict() for col in self.columns]
         }
         # columns = [col.data() for col in self.columns]
         # data["Columns"] = [col.data() for col in self.columns]
@@ -327,7 +334,7 @@ class Tabla:
         path = os.path.split(self.file)
         if not os.path.exists(self.file):
             #separate file of a path
-            #Verifi if path exist, if false, create the path
+            #Verify if path exist, if false, create the path
             if os.path.exists(path[0])==False:
                 try:
                     os.makedirs(path[0])
@@ -353,11 +360,9 @@ class Tabla:
 
     def loadFromJSON(self, json):
         if tryGet(json, "Type")!="Table":
-            print("DataframeToDB: Error, the data is not a table")
-            return False
+            raise ValueError("DataframeToDB: Error, the data is not a table")
         if tryGet(json, "Type")!="Name":
-            print("DataframeToDB: Error, the data not have name")
-            return False
+            raise ValueError("DataframeToDB: Error, the data not have name")
         self.nombre=tryGet(json, "Name")
         self.file=tryGet(json, "File", None)
         self.columns=[]
@@ -380,7 +385,7 @@ class Tabla:
                 )
             )
 
-    def checkColType(self, df, qForSample, kwargs):
+    def checkColType(self, df, col, qForSample, kwargs):
         if str(df.dtypes[col])=="Int64":
             if df[col].sample(qForSample).apply(lambda x: x<=-2147483648 and x>=2147483647 ).all().item(): #corregir
                 if kwargs.get('debug', False):

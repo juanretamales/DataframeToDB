@@ -8,7 +8,12 @@ If you want to donate:  https://ko-fi.com/juanretamales
 
 ## Introduction
 
-note: not use yet, in development in my freetime
+note: for the moment, i create a function for tested the library, but i changed the way how to work because to use for controling a database and not only a table.
+
+When to use:
+
+- When you need save dataframes, for example when scraping a table
+- You need shared a database estructure for use in proyects
 
 ___
 
@@ -28,6 +33,7 @@ ______
 
 - Written for Python 3.8+
 - Pandas library
+- SQLalchemy library
 - driver for db conection
 
 ## Example
@@ -71,6 +77,21 @@ conn.close()
 
 ```
 
+## How to work
+
+when you use, the library create a folden with the structure
+
+```
+#root of proyect
+==================
+|-.dataframeToDb
+|   + Databasename
+|      + TablesFiles
+|
+```
+
+
+
 ## USAGE
 
 ___
@@ -96,3 +117,24 @@ toDB.save(df, name, conn, if_exists="append", custom=None, temp=False)
 * ```temp```: Either `True` if creating a local sql server temporary table for the connection, or `False` (default) if not.
 
 inspired in fast-to-sql
+
+Thanx to:
+Joseph Astrahan for the answer in stackoverflow 
+
+
+
+
+
+## FAQ
+
+### What databases does DataframeToDB support? 
+
+The same as SQLAlchemy, for now they are SQLite, Postgresql, MySQL, Oracle, MS-SQL, Firebird, Sybase and others. But you should check [this link](https://www.sqlalchemy.org/features.html). 
+
+### why use pickle and not json?
+
+It really cost me a lot to decide, json could give a lot of transparency, but finally I decided to use cpickle due to its speed and that it could have a greater impact on other projects 
+
+### why did you decide to create this library? 
+
+For scrapping projects it is very tedious to be configuring tables, I wanted something more automatic, I found one but it was only compatible with MS-SQL, and in projects that could not afford that database I decided to create this and create things that I felt were missing. 
