@@ -33,20 +33,20 @@ class Table:
             type:
             primary_key:
             auto_increment:
-
-
-
+            
         Note: required is necesary, excluyent* is mutualy excluyent, you can use only one or none
         """
-        if str(type(kwargs.get('df', False)))!="<class 'pandas.core.frame.DataFrame'>":
-            raise ValueError("df: could be <class 'pandas.core.frame.DataFrame'>") 
-        #if define 1, not both with XOR operator
-        if tryGet(kwargs, 'df', False, True)==False ^ kwargs.get('columns', False)==False:
+        
+        #if define 1 or none, not both with XOR operator
+        # if tryGet(kwargs, 'df', False, True)==False ^ kwargs.get('columns', False)==False:
+        if tryGet(kwargs, 'df', False, True) and tryGet(kwargs, 'columns', False, True):
             raise ValueError("Only can define Dataframe or Columns, not both") 
 
         self.columns=[]
         if tryGet(kwargs, 'df', False, True):
-            self.dataframe_to_columns(kwargs)
+            if not isinstance(kwargs.get('df', False), pd.DataFrame):
+                raise ValueError("df: could be <class 'pandas.core.frame.DataFrame'>") 
+            self.dataframe_to_columns(**kwargs)
 
         if tryGet(kwargs, 'columns', False, True):
             cols = [isinstance(col, Column) for col in tryGet(kwargs, 'columns', [])]
@@ -61,16 +61,25 @@ class Table:
         if self.file==None:
             self.file=os.path.join('.dataframeToDb', str(self.name) + ".ToDB")
 
-    def dataframe_to_columns(self, kwargs):
+    def dataframe_to_columns(self, **kwargs):
+        """
+        Set Columns from a dataframe df
+
+        Parameters:
+            df : (required) Dataframe
+            q_sample: Number of elements of the DataFrame to determine the type (only use if your define df param)
+            custom: a dict who use for determinate de column class, if use this, you need a estructure how the next example:
+
+        """
         df = tryGet(kwargs, 'df')
-        qForSample = tryGet(kwargs, 'q_sample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
-        if qForSample<0:
+        q_sample = tryGet(kwargs, 'q_sample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
+        if q_sample<0:
             raise ValueError("q_sample: could be positive") 
-        if qForSample>len(df):
+        if q_sample>len(df):
             print("Warning, q_sample is more than dataframe length, use length instead")
-            qForSample=len(df)
+            q_sample=len(df)
         else:
-            qForSample = len(df) if len(df)<=100 else int(len(df) * 0.3)
+            q_sample = len(df) if len(df)<=100 else int(len(df) * 0.3)
 
         colList = df.columns.to_list()
 
@@ -88,7 +97,9 @@ class Table:
                 if tryGet(customCol, "type", False, True):
                     type=tryGet(customCol, "type")
                 else:
-                    type = self.checkColType(df, col, qForSample, kwargs)
+                    kwargs["col"]=col
+                    kwargs["q_sample"]=q_sample
+                    type = self.checkColType(**kwargs)
                 self.columns.append(
                     Column(
                         col_name = tryGet(customCol, "col_name", col),
@@ -100,7 +111,9 @@ class Table:
                     )
                 )
             else:
-                type = self.check_col_type(df, col, qForSample, kwargs)
+                kwargs["col"]=col
+                kwargs["q_sample"]=q_sample
+                type = self.check_col_type(**kwargs)
                 self.columns.append(
                     Column(
                         col_name = col,
@@ -167,10 +180,10 @@ class Table:
             dict : the values of this class in dict format
         """
         return {
-            "Name": self.name, 
-            "File": self.file,
-            "Type": "Table",
-            "Columns": [col.get_dict() for col in self.columns]
+            "name": self.name, 
+            "file": self.file,
+            "type": "table",
+            "columns": [col.get_dict() for col in self.columns]
         }
         # columns = [col.data() for col in self.columns]
         # data["Columns"] = [col.data() for col in self.columns]
@@ -201,47 +214,70 @@ class Table:
         except ValueError as e:
             print("DataframeToDB: Error save the file - {}".format(e))
 
-    def load_from_file(self, path):
+    def load_from_file(self, path=None):
+        """
+        Set a table estructure in this class from a file
+
+        Parameters:
+            path : path of file from load table estructure
+        """
         if path!=None:
             self.file = path
         data=None
         try:
-            data = json.load(self.file)
-            self.loadFromJSON(data)
-        except:
-            print("DataframeToDB: Error reading the file {}".format(path))
+            data={}
+            with open(self.file) as f:
+                data = json.load(f)
+            self.load_from_JSON(data)
+        except ValueError as e:
+            raise ValueError("DataframeToDB: Error reading the file {}, message [{}]".format(path, e))
 
     def load_from_JSON(self, json):
-        if tryGet(json, "Type")!="Table":
+        if tryGet(json, "type")!="table":
             raise ValueError("DataframeToDB: Error, the data is not a table")
-        if tryGet(json, "Type")!="Name":
+        if tryGet(json, "name", True, False):
             raise ValueError("DataframeToDB: Error, the data not have name")
-        self.nombre=tryGet(json, "Name")
-        self.file=tryGet(json, "File", None)
+        self.nombre=tryGet(json, "name")
+        self.file=tryGet(json, "file", None)
         self.columns=[]
-        for col in tryGet(json, "Columns", []):
-            if tryGet(col, "col_name", False)==False:
-                print("DataframeToDB: Error, the row of table not have col_name")
-                return False
-            if tryGet(col, "Type", False)==False:
-                print("DataframeToDB: Error, the row of table not have Type")
-                return False
+        for col in tryGet(json, "columns", []):
+            if tryGet(col, "col_name", True, False):
+                raise ValueError("DataframeToDB: Error, the row of table not have col_name")
+            if tryGet(col, "type", True, False):
+                raise ValueError("DataframeToDB: Error, the row of table not have Type")
             self.columns.append(
                 Column(
-                    {
-                        "col_name": tryGet(col, "col_name"),
-                        "col_dfName": tryGet(col, "col_dfName", tryGet(col, "col_name")),
-                        "Type": tryGet(col, "Type"),
-                        "primary": tryGet(col, "Primary Key", False),
-                        "Auto Increment": tryGet(col, "Auto Increment", False)
-                    }
+                    col_name= tryGet(col, "col_name"),
+                    col_df_name= tryGet(col, "col_df_name", tryGet(col, "col_name")),
+                    type= tryGet(col, "type"),
+                    primary= tryGet(col, "primary_key", False),
+                    auto_increment= tryGet(col, "auto_increment", False)
                 )
             )
 
-    def check_col_type(self, df, col, qForSample, kwargs):
+    def check_col_type(self, **kwargs):
+        """
+        Return a name of column type of SQLalchemy from examinated sample
 
+        Parameters:
+            df : (required) Dataframe of examine
+            col : (required) Column name
+            q_sample: Number of elements of the DataFrame to determine the type (only use if your define df param)
+
+        Returns:
+            (results) : of SqlAlchemy query executed
+        """
+        if tryGet(kwargs, "df", True, False):
+            raise ValueError("Error, df is required.") 
+        df = tryGet(kwargs, "df")
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError("Error, df is not dataframe.") 
+        if tryGet(kwargs, "col", True, False):
+            raise ValueError("Error, col is required.") 
+        col = tryGet(kwargs, "col")
+        q_sample = int(tryGet(kwargs, "q_sample", len(df)))
         if str(df.dtypes[col])=="Int64" or str(df.dtypes[col])=="int64":
-            if df[col].sample(qForSample).apply(lambda x: x<=-2147483648 and x>=2147483647 ).all().item(): #corregir
+            if df[col].sample(q_sample).apply(lambda x: x<=-2147483648 and x>=2147483647 ).all().item(): #corregir
                 if kwargs.get('debug', False):
                     print("Nombre: {}, Tipo: {}, ColType: Integer, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
                 return "Integer"
@@ -259,7 +295,7 @@ class Table:
                 print("Nombre: {}, Tipo: {}, ColType: Boolean, min: {}, max: {}".format(col, str(df.dtypes[col]), df[col].min(), df[col].max()))
             return "Boolean"
         elif str(df.dtypes[col])=="string":
-            if df[col].sample(qForSample).apply(lambda x: len(str(x))<=255).all().item():
+            if df[col].sample(q_sample).apply(lambda x: len(str(x))<=255).all().item():
                 if kwargs.get('debug', False):
                     print("Nombre: {}, Tipo: {}, ColType: String, min: {}, max: {}".format(col, str(df.dtypes[col]), len(df[col].min()), len(df[col].max())))
                 return "String"
@@ -269,11 +305,11 @@ class Table:
                 return "Text"
         elif str(df.dtypes[col])=='datetime64[ns]': #si es date time, puede ser datetime, date or time
             # sample = pd.Timestamp(df[col].sample(1).values[0])
-            if df[col].sample(qForSample).apply(lambda x: isDateFromDatetime(x)).all().item():#sample==dt.time(hour=sample.hour, minute=sample.minute, second=sample.microsecond, microsecond=sample.microsecond):#si es time
+            if df[col].sample(q_sample).apply(lambda x: isDateFromDatetime(x)).all().item():#sample==dt.time(hour=sample.hour, minute=sample.minute, second=sample.microsecond, microsecond=sample.microsecond):#si es time
                 if kwargs.get('debug', False):
                     print("Nombre: {}, Tipo: {}, ColType: Date".format(col, str(df.dtypes[col])))
                 return "Date"
-            elif df[col].sample(qForSample).apply(lambda x: isTimeFromDatetime(x)).all().item():# sample==dt.date(year=sample.year, month=sample.month, day=sample.day):
+            elif df[col].sample(q_sample).apply(lambda x: isTimeFromDatetime(x)).all().item():# sample==dt.date(year=sample.year, month=sample.month, day=sample.day):
                 if kwargs.get('debug', False):
                     print("Nombre: {}, Tipo: {}, ColType: Time".format(col, str(df.dtypes[col])))
                 return "Time"
@@ -296,7 +332,8 @@ class Table:
             (results) : of SqlAlchemy query executed
         """
         connection = engine.connect()
-        query = sqlalchemy.select([self.get_table(engine)])
+        if isinstance(query, str):
+            query=sqlalchemy.text(query)
         results=connection.execute(query)
         # if query.is_insert or query.is_delete or query.is_update():
 
@@ -310,7 +347,9 @@ class Table:
 
         Parameters:
             engine : (required) an Engine, which the Session will use for connection
-            filter_by : a dict with the filters apply to select query, for example {"name":"evans"}
+            filter: (excluyent*) a dict with the filters apply to select query, for example {"name":"evans"}
+            params: params for filter params if you use :value
+            filter_by : (excluyent*) a dict with the filters apply to select query, for example {"name":"evans"}
 
         Returns:
             (List) : with the obtained data
@@ -318,10 +357,21 @@ class Table:
         if tryGet(kwargs, "engine", True, False):
             raise ValueError("Error trying select data, engine is necesary") 
         engine = tryGet(kwargs, "engine")
-        if tryGet(kwargs, "filter_by", False, True):
+        if tryGet(kwargs, "filter", False, True):
+            filter=tryGet(kwargs, "filter")
+            if ":" in filter and tryGet(kwargs, "params", True, False):
+                raise ValueError("if use params, you need set params value")
+            param=tryGet(kwargs, "params")
+            if param!=False:
+                query = sqlalchemy.select([self.get_table(engine)]).filter(sqlalchemy.text(filter)).params(**param)
+            else:
+                query = sqlalchemy.select([self.get_table(engine)]).filter(sqlalchemy.text(filter))
+
+        elif tryGet(kwargs, "filter_by", False, True):
             query = sqlalchemy.select([self.get_table(engine)]).filter_by(tryGet(kwargs, "filter_by"))
         else:
             query = sqlalchemy.select([self.get_table(engine)])
+
         try:
             execute = self.execute(engine, query)
             return execute.fetchall()
@@ -401,6 +451,28 @@ class Table:
                 raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
             session.commit()
 
+    def delete(self, data, engine, debug=False):
+        """
+        Delete data with primary key into database (is necesary conection),
+        if any error appears in the dataframe insert, apply rollback
+
+        Parameters:
+            data : dict for filter the data. ex "id=3"
+            engine : an Engine, which the Session will use for connection
+        """
+        result=None
+        tbl = self.get_table(engine)
+        with Session(engine) as session:
+            session.begin()
+            try:
+                delRow = session.query(tbl).filter(**data).delete() #filter and delete for the cols
+                result=session.execute(delRow) 
+            except Exception as e:
+                session.rollback()
+                raise ValueError("Error trying Delete a element of dataframe, apply rollback, Error message [{}]".format(e)) 
+            session.commit()
+        return result
+
 
     def clean(self, df, engine, debug=False):
         """
@@ -410,12 +482,9 @@ class Table:
         Parameters:
             df : the dataframe (the same estructure of this table)
             engine : an Engine, which the Session will use for connection
-            session : a session, if not apears, create a new session
-
-        Returns:
-            (Table) : of SqlAlchemy with the columns of this class
         """
         tbl = self.get_table(engine)
+        results=[]
         with Session(engine) as session:
             session.begin()
             try:
@@ -435,16 +504,19 @@ class Table:
                     else:
                         idpk = np.unique([i for i in df[pkcols[0]]])
                     # drop any coincidence of dataframe cleaned
-                    #stmt = Users.__table__.delete().where(Users.id.in_(subquery...))
-                    # session.query(tbl).filter(tbl.pk.in_(idpk)).delete()
-                    session.query(tbl).filter(tbl[pk].in_(idpk)).delete()
+                    result=session.query(tbl).filter(tbl[pk].in_(idpk)).delete()
+                    results.append(result)
                 else:
-                    df[pkcols]
+                    minidf = df[pkcols] #pick the primary key cols
+                    for index, row in df.iterrows():
+                        delRow = session.query(tbl).filter(**row.to_dict()).delete() #filter and delete for the cols
+                        result = session.execute(delRow) 
+                        results.append(result)
             except Exception as e:
                 session.rollback()
-                raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
-            else:
-                session.commit()
+                raise ValueError("Error trying Delete a element of dataframe, apply rollback, Error message [{}]".format(e)) 
+            session.commit()
+        return results
 
 
     def toDb(self, df, engine, method='append', debug=False):
