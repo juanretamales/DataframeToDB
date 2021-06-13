@@ -25,24 +25,29 @@ ___
 
 ____
 
-For instalation, for now, copy the file 'DataframeToDB.py into the project' and import
+For instalation you can copy the dataframetodb folder into your proyect from github, or
+```python
+pip install dataframetodb
+```
 
 ## Requirements
 
 ______
 
 - Written for Python 3.8+
-- Pandas library
-- SQLalchemy library
-- driver for db conection
+- numpy>=1.20.2
+- pandas>=1.2.4
+- python-dateutil>=2.8.1
+- SQLAlchemy>=1.4.9
+- **driver for db conection**
 
 ## Example
 
 ___
 
 ```python
+from dataframetodb import table
 import pandas as pd
-from DataframeToDB import dataframetodb as toDB
 from datetime import datetime
 
 import pyodbc
@@ -79,21 +84,10 @@ conn.close()
 
 ## How to work
 
-when you use, the library create a folden with the structure
-
-```
-#root of proyect
-==================
-|-.dataframeToDb
-|   + Databasename
-|      + TablesFiles
-|
-```
-
-
+The Table of DataframeToDB is a custom class who generate a SQLAlchemy Table when you call getTable function.
 
 ## USAGE
-
+For more information, you can view the documentation in github or view de documentation of code.
 ___
 
 ### SAVE
@@ -121,20 +115,20 @@ inspired in fast-to-sql
 Thanx to:
 Joseph Astrahan for the answer in stackoverflow 
 
-
-
-
-
 ## FAQ
 
 ### What databases does DataframeToDB support? 
 
 The same as SQLAlchemy, for now they are SQLite, Postgresql, MySQL, Oracle, MS-SQL, Firebird, Sybase and others. But you should check [this link](https://www.sqlalchemy.org/features.html). 
 
-### why use pickle and not json?
+### why use json and not pickle?
 
-It really cost me a lot to decide, json could give a lot of transparency, but finally I decided to use cpickle due to its speed and that it could have a greater impact on other projects 
+It really cost me to decide, while pickle is faster, json is more transparent and it is easier to make modifications and transfers of files between projects, also it is expected that json can be used not only in tables, if not, in the entire database.
 
 ### why did you decide to create this library? 
 
 For scrapping projects it is very tedious to be configuring tables, I wanted something more automatic, I found one but it was only compatible with MS-SQL, and in projects that could not afford that database I decided to create this and create things that I felt were missing. 
+
+### Cats or Dogs?
+
+Pandas!!!

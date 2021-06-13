@@ -21,37 +21,53 @@ import numpy as np
 
 class Table:
     def __init__(self, **kwargs):
-        if str(type(kwargs.get('Df', False)))!="<class 'pandas.core.frame.DataFrame'>":
-            raise ValueError("Df: could be <class 'pandas.core.frame.DataFrame'>") 
+        """
+        name: (required) Name of table for saved in Database
+        df: (excluyent*) The Dataframe who you like get the Table estructure
+        columns: (excluyent*) A list of DataframeToDB.Columns class
+        file: You can set a file for save the estructure for future use
+        q_sample: Number of elements of the DataFrame to determine the type (only use if your define df param)
+        custom: a dict who use for determinate de column class, if use this, you need a estructure how the next example:
+            col_name: Name of column for saved in Table
+            col_df_name: Name of column of dataframe
+            type:
+            primary_key:
+            auto_increment:
+
+
+
+        Note: required is necesary, excluyent* is mutualy excluyent, you can use only one or none
+        """
+        if str(type(kwargs.get('df', False)))!="<class 'pandas.core.frame.DataFrame'>":
+            raise ValueError("df: could be <class 'pandas.core.frame.DataFrame'>") 
         #if define 1, not both with XOR operator
-        if tryGet(kwargs, 'Df', False, True)==False ^ kwargs.get('Columns', False)==False:
+        if tryGet(kwargs, 'df', False, True)==False ^ kwargs.get('columns', False)==False:
             raise ValueError("Only can define Dataframe or Columns, not both") 
 
         self.columns=[]
-        if tryGet(kwargs, 'Df', False, True):
-            self.dataframeToColumns(kwargs)
+        if tryGet(kwargs, 'df', False, True):
+            self.dataframe_to_columns(kwargs)
 
-        if tryGet(kwargs, 'Columns', False, True):
-            cols = [isinstance(col, Column) for col in tryGet(kwargs, 'Columns', [])]
+        if tryGet(kwargs, 'columns', False, True):
+            cols = [isinstance(col, Column) for col in tryGet(kwargs, 'columns', [])]
             if np.all(cols):
-                self.columns = tryGet(kwargs, 'Columns')
+                self.columns = tryGet(kwargs, 'columns')
             else:
                 raise ValueError("A column it not a Column type class") 
 
-        self.name = kwargs.get('Name', "NoName")
-        self.file=kwargs.get('File', None)
+        self.name = kwargs.get('name', "NoName")
+        self.file=kwargs.get('file', None)
         self.Base = declarative_base()
         if self.file==None:
             self.file=os.path.join('.dataframeToDb', str(self.name) + ".ToDB")
 
-    def dataframeToColumns(self, kwargs):
-        # raise ValueError("Not implemented yet") 
-        df = tryGet(kwargs, 'Df')
-        qForSample = tryGet(kwargs, 'qForSample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
+    def dataframe_to_columns(self, kwargs):
+        df = tryGet(kwargs, 'df')
+        qForSample = tryGet(kwargs, 'q_sample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
         if qForSample<0:
-            raise ValueError("qForSample: could be positive") 
+            raise ValueError("q_sample: could be positive") 
         if qForSample>len(df):
-            print("Warning, qForSample is more than dataframe length, use length instead")
+            print("Warning, q_sample is more than dataframe length, use length instead")
             qForSample=len(df)
         else:
             qForSample = len(df) if len(df)<=100 else int(len(df) * 0.3)
@@ -59,7 +75,7 @@ class Table:
         colList = df.columns.to_list()
 
         for col in colList:
-            exist = [1 for col in self.columns if col==col.colDfName]
+            exist = [1 for col in self.columns if col==col.col_df_name]
             if np.array(exist).sum() > 0:
                 print("The column [{}] is already in the table [{}], skip").format(col, self.name)
                 continue
@@ -69,64 +85,81 @@ class Table:
             #si seteamos algo custom de la columna
             if tryGet(custom, col, False, True):
                 customCol = tryGet(custom, col)
-                if tryGet(customCol, "Type", False, True):
-                    type=tryGet(customCol, "Type")
+                if tryGet(customCol, "type", False, True):
+                    type=tryGet(customCol, "type")
                 else:
                     type = self.checkColType(df, col, qForSample, kwargs)
                 self.columns.append(
                     Column(
-                        colName = tryGet(customCol, "colName", col),
-                        colDfName = tryGet(customCol, "colDfName", col),
-                        Type = type,
-                        PrimaryKey = tryGet(customCol, "PrimaryKey", False),
-                        AutoIncrement = tryGet(customCol, "AutoIncrement", False)
+                        col_name = tryGet(customCol, "col_name", col),
+                        col_df_name = tryGet(customCol, "col_df_name", col),
+                        type = type,
+                        primary_key = tryGet(customCol, "primary_key", False),
+                        auto_increment = tryGet(customCol, "auto_increment", False),
+                        nullable = tryGet(customCol, "nullable", False)
                     )
                 )
             else:
-                type = self.checkColType(df, col, qForSample, kwargs)
+                type = self.check_col_type(df, col, qForSample, kwargs)
                 self.columns.append(
                     Column(
-                        colName = col,
-                        Type = type,
-                        colDfName = col,
-                        PrimaryKey = False,
-                        AutoIncrement = False
+                        col_name = col,
+                        type = type,
+                        col_df_name = col,
+                        primary_key = False,
+                        auto_increment = False,
+                        nullable = False
                     )
                 )
 
-    def getSQLcolumns(self):
-        # return [col.colData() for col in self.columns]
+    def get_dict_columns(self):
+        """
+        Returns a dict for create SQLAlchemy table
+
+        Returns:
+            (dict) : dict for create SQLAlchemy table
+        """
         attr_dict={'__tablename__': self.name}
-        # attr_dict={}
         for col in self.columns:
-            name, coldata = col.colData()
+            name, coldata = col.col_data()
             attr_dict[name] = coldata
-        if self.getPrimaryKeys()==[]:
-            attr_dict[self.name+"_id"] = sqlCol(self.name+"_id", Integer, primary_key=True)
+        if self.get_primary_keys()==[]:
+            attr_dict[self.name+"_id"] = sqlCol(self.name+"_id", Integer, primary_key=True, autoincrement=True)
         return attr_dict
 
-    def getParents(self):
+    def get_parents(self):
+        """
+        Returns a list with columns who contains foreign key
+
+        Returns:
+            (List) : list with columns who contains foreign key
+        """
         return [col for col in self.columns if col.fk!=None]
 
-    def getPrimaryKeys(self):
+    def get_primary_keys(self):
+        """
+        Returns a list with columns with primary key
+
+        Returns:
+            (List) : list with columns with primary key
+        """
         return [col for col in self.columns if col.primary==True]
 
-    def getTable(self, engine):
+    def get_table(self, engine):
         """
         Returns a SqlAlchemy Table instance based in DataframeToDB Table
 
         Returns:
             (Table) : of SqlAlchemy with the columns of this class
         """
-        # meta = MetaData()
-        # # meta.reflect(bind=engine)
-        # # if self.name in meta.tables: return
-        # return type(self.name, meta, self.getSQLcolumns())
-        # return sqlTable(self.name, MetaData(), *self.getSQLcolumns())
-        # Base = declarative_base()
-        return type(self.name, (self.Base,), self.getSQLcolumns())
+        try: #revisa si tiene la tabla ya agregada a la Base y retorna esa en vez de crearla
+            if self.name in self.Base.metadata.tables.keys():
+                return self.Base.metadata.tables[self.name]
+        except:
+            pass
+        return type(self.name, (self.Base,), self.get_dict_columns())
 
-    def getDict(self):
+    def get_dict(self):
         """
         Returns a dict in values of this Table class with the columnd dict values
 
@@ -137,12 +170,12 @@ class Table:
             "Name": self.name, 
             "File": self.file,
             "Type": "Table",
-            "Columns": [col.getDict() for col in self.columns]
+            "Columns": [col.get_dict() for col in self.columns]
         }
         # columns = [col.data() for col in self.columns]
         # data["Columns"] = [col.data() for col in self.columns]
 
-    def saveToFile(self):
+    def save_to_file(self):
         """
         Save a dict value of this class (with getDict) in a file, the route 
         of file is in self.file variable. 
@@ -168,7 +201,7 @@ class Table:
         except ValueError as e:
             print("DataframeToDB: Error save the file - {}".format(e))
 
-    def loadFromFile(self, path):
+    def load_from_file(self, path):
         if path!=None:
             self.file = path
         data=None
@@ -178,7 +211,7 @@ class Table:
         except:
             print("DataframeToDB: Error reading the file {}".format(path))
 
-    def loadFromJSON(self, json):
+    def load_from_JSON(self, json):
         if tryGet(json, "Type")!="Table":
             raise ValueError("DataframeToDB: Error, the data is not a table")
         if tryGet(json, "Type")!="Name":
@@ -205,8 +238,7 @@ class Table:
                 )
             )
 
-    # def checkColType(self, df, col, qForSample, kwargs):
-    def checkColType(self, df, col, qForSample, kwargs):
+    def check_col_type(self, df, col, qForSample, kwargs):
 
         if str(df.dtypes[col])=="Int64" or str(df.dtypes[col])=="int64":
             if df[col].sample(qForSample).apply(lambda x: x<=-2147483648 and x>=2147483647 ).all().item(): #corregir
@@ -252,32 +284,167 @@ class Table:
         else:
             raise ValueError("Not suported, Name Df: {}, dtype: {}".format(col, str(df.dtypes[col])))
 
-    def insert(self, df, engine, debug=False):
+    def execute(self, engine, query):
+        """
+        Get data from engine (for example database) and return a dataframe with the data
+
+        Parameters:
+            engine : (required) an Engine, which the Session will use for connection
+            query : a sqlalchemy query
+
+        Returns:
+            (results) : of SqlAlchemy query executed
+        """
+        connection = engine.connect()
+        query = sqlalchemy.select([self.get_table(engine)])
+        results=connection.execute(query)
+        # if query.is_insert or query.is_delete or query.is_update():
+
+        # if query.is_select:
+        #     return results.fetchall()
+        return results
+
+    def select(self, engine, filter_by=None):
+        """
+        Get data from engine (for example database) and return a list with the data
+
+        Parameters:
+            engine : (required) an Engine, which the Session will use for connection
+            filter_by : a dict with the filters apply to select query, for example {"name":"evans"}
+
+        Returns:
+            (List) : with the obtained data
+        """
+        if filter!=None:
+            if not isinstance(filter_by, dict):
+                raise ValueError("Error, filter is not dict.") 
+            query = sqlalchemy.select([self.get_table(engine)]).filter_by(**filter)
+        else:
+            query = sqlalchemy.select([self.get_table(engine)])
+        try:
+            execute = self.execute(engine, query)
+            return execute.fetchall()
+        except Exception as e:
+            raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
+
+    def select_to_dataframe(self, engine, filter_by=None):
+        """
+        Get data from engine (for example database) and return a dataframe with the data
+
+        Parameters:
+            engine : (required) an Engine, which the Session will use for connection
+            filter_by : a dict with the filters apply to select query, for example {"name":"evans"}
+
+        Returns:
+            (Dataframe) : of Pandas with the obtained data
+        """
+        cols = [col.col_name for col in self.columns]
+        if len(self.get_primary_keys)==0:
+            cols.append(self.name+"_id")
+            df = pd.DataFrame(self.select(engine, filter_by), columns=cols)
+            return df[cols[:-1]]
+        return pd.DataFrame(self.select(engine, filter_by), columns=cols)
+
+    def insert(self, data, engine, debug=False):
+        """
+        Insert data of dict into database (is necesary conection),
+        if any error appears in the dataframe insert, apply rollback
+
+        Parameters:
+            data : (required) the dict (the same estructure of this table)
+            engine : (required) an Engine, which the Session will use for connection
+
+        Returns:
+            (Table) : of SqlAlchemy with the columns of this class
+        """
+        if not isinstance(data, dict):
+            raise ValueError("Error, data is not dict.") 
+        tbl = self.get_table(engine)
+        with Session(engine) as session:
+            session.begin()
+            if debug:
+                print("starting to save the data in the selected database, you can pray that it does not fail in the meantime")
+            try:
+                newRow = tbl.insert().values(**data)
+                session.execute(newRow) 
+            except Exception as e:
+                session.rollback()
+                raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
+            session.commit()
+
+    def dataframe_insert(self, df, engine, debug=False):
         """
         Insert data of dataframe into database (is necesary conection),
         if any error appears in the dataframe insert, apply rollback
 
         Parameters:
-            df : the dataframe (the same estructure of this table)
+            data : the dataframe (the same estructure of this table)
             engine : an Engine, which the Session will use for connection
 
         Returns:
             (Table) : of SqlAlchemy with the columns of this class
         """
-        tbl = self.getTable()
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError("Error, df is not dataframe.") 
+        tbl = self.get_table(engine)
         with Session(engine) as session:
             session.begin()
             if debug:
                 print("starting to save the data in the selected database, you can pray that it does not fail in the meantime")
             try:
                 for index, row in df.iterrows():
-                    newRow = tbl(**row.to_dict())
-                    session.add(newRow)
+                    newRow = tbl.insert().values(**row.to_dict())
+                    session.execute(newRow) 
+            except Exception as e:
+                session.rollback()
+                raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
+            session.commit()
+
+
+    def clean(self, df, engine, debug=False):
+        """
+        Clean data with primary key into database (is necesary conection),
+        if any error appears in the dataframe insert, apply rollback
+
+        Parameters:
+            df : the dataframe (the same estructure of this table)
+            engine : an Engine, which the Session will use for connection
+            session : a session, if not apears, create a new session
+
+        Returns:
+            (Table) : of SqlAlchemy with the columns of this class
+        """
+        tbl = self.get_table(engine)
+        with Session(engine) as session:
+            session.begin()
+            try:
+                # get name of primary keys cols
+                pkcols = [col.col_df_name for col in self.get_primary_keys()]
+                if pkcols==[] and not(self.name + "_id" in df.columns): #revisa si la tabla tiene primary key por clase o construccion
+                    raise ValueError("Error, for clean method you need one primary key implicit at least, if use autogenerate, you need a column in dataframe with name '{}'".format(self.name + "_id")) 
+                # self.Base.metadata.create_all(engine, checkfirst=True)
+                self.Base.metadata.tables[self.name].create(engine, checkfirst=True)
+                # drop duplicates primary key for dataframe
+                dfTemp = df.drop_duplicates(subset=pkcols)
+                pk = self.get_primary_keys() #id of primarykeys
+                if len(pkcols)==1:
+                    idpk=[]
+                    if str(df.dtypes[pkcols[0]])=="string":
+                        idpk = np.unique(["'{}'".format(i) for i in df[pkcols[0]]])
+                    else:
+                        idpk = np.unique([i for i in df[pkcols[0]]])
+                    # drop any coincidence of dataframe cleaned
+                    #stmt = Users.__table__.delete().where(Users.id.in_(subquery...))
+                    # session.query(tbl).filter(tbl.pk.in_(idpk)).delete()
+                    session.query(tbl).filter(tbl[pk].in_(idpk)).delete()
+                else:
+                    df[pkcols]
             except Exception as e:
                 session.rollback()
                 raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
             else:
                 session.commit()
+
 
     def toDb(self, df, engine, method='append', debug=False):
         """
@@ -299,36 +466,26 @@ class Table:
         Returns:
             None
         """
-        
-        tbl = self.getTable(engine)
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError("Error, df is not dataframe.") 
+        tbl = self.get_table(engine)
         with Session(engine) as session:
             session.begin()
             try:
                 if method=="append":
-                    # Base = declarative_base()
-                    # Base.metadata.create_all(engine)
-                    self.Base.metadata.create_all(engine, checkfirst=True)
-                    # self.Base.metadata.create_all(engine, tables=tbl, checkfirst=True)
-                    # tbl.create(engine, checkfirst=True)
+                    self.Base.metadata.tables[self.name].create(engine, checkfirst=True)
                 if method=="replace":
-                    self.Base.metadata.drop_all(engine, checkfirst=True)
-                    self.Base.metadata.create_all(engine, checkfirst=False)
+                    self.Base.metadata.tables[self.name].drop(engine, checkfirst=True) 
+                    self.Base.metadata.tables[self.name].create(engine, checkfirst=True)
                 if method=="clean":
-                    # get name of primary keys cols
-                    pkcols = [col.colDfName for col in self.getPrimaryKeys()]
-                    if pkcols==[] and not(self.name + "_id" in df.columns): #revisa si la tabla tiene primary key por clase o construccion
-                        raise ValueError("Error, for clean method you need one primary key implicit at least, if use autogenerate, you need a column in dataframe with name '{}'".format(self.name + "_id")) 
-                    self.Base.metadata.create_all(engine, checkfirst=True)
-                    # drop duplicates primary key for dataframe
-                    dfTemp = df.drop_duplicates(subset=pkcols)
-                    # drop any coincidence of dataframe cleaned
-                    for index, row in dfTemp.iterrows():
-                        filters = row.to_dict()
-                        tbl.query.filter_by(**filters).delete()
+                   self.clean(df, engine)
+
+                self.dataframe_insert(df, engine, debug)
             except Exception as e:
                 session.rollback()
-                raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
+                raise ValueError("Error trying insert a element of dataframe, apply rollback, Error message [{}]".format(e)) 
             else:
                 session.commit()
+            session.commit()
         
 
