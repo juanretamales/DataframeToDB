@@ -58,7 +58,7 @@ def cleanSpecialCharacters(texto):
     """
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
     return ''.join(c for c in texto if c in valid_chars)
-def tryGet(variable, key, case=False, caseTruth=None):
+def tryGet(variable, key, caseFalse=False, caseTruth=None):
     """
     Returns a value depend of if variable has a key, in other case return case
 
@@ -78,7 +78,7 @@ def tryGet(variable, key, case=False, caseTruth=None):
         return var
     except:
         pass
-    return case
+    return caseFalse
 
 def isTimeFromDatetime(fecha):
     """

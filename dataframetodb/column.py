@@ -35,7 +35,7 @@ class Column:
         return "{} | {} | {} | {} | {}".format(self.col_name, self.type, "Primary Key" if self.primary else '', "Auto Increment" if self.ai else '', "Nullable" if self.is_nullable else '')
 
     def get_dict(self):
-        return {"col_name":self.col_name, "col_df_name":self.colDfName, "type": self.type, "primary_key": self.primary, "auto_increment": self.ai, "nullable": self.is_nullable}
+        return {"col_name":self.col_name, "col_df_name":self.col_df_name, "type": self.type, "primary_key": self.primary, "auto_increment": self.ai, "nullable": self.is_nullable}
 
     def col_data(self):
         if self.primary and self.is_nullable and self.ai:

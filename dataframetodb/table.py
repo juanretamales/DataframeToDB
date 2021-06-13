@@ -197,7 +197,7 @@ class Table:
         try:
 
             with open(self.file, 'w') as outfile:
-                json.dump(self.getDict(), outfile)
+                json.dump(self.get_dict(), outfile)
         except ValueError as e:
             print("DataframeToDB: Error save the file - {}".format(e))
 
@@ -304,7 +304,7 @@ class Table:
         #     return results.fetchall()
         return results
 
-    def select(self, engine, filter_by=None):
+    def select(self, **kwargs):
         """
         Get data from engine (for example database) and return a list with the data
 
@@ -315,10 +315,11 @@ class Table:
         Returns:
             (List) : with the obtained data
         """
-        if filter!=None:
-            if not isinstance(filter_by, dict):
-                raise ValueError("Error, filter is not dict.") 
-            query = sqlalchemy.select([self.get_table(engine)]).filter_by(**filter)
+        if tryGet(kwargs, "engine", True, False):
+            raise ValueError("Error trying select data, engine is necesary") 
+        engine = tryGet(kwargs, "engine")
+        if tryGet(kwargs, "filter_by", False, True):
+            query = sqlalchemy.select([self.get_table(engine)]).filter_by(tryGet(kwargs, "filter_by"))
         else:
             query = sqlalchemy.select([self.get_table(engine)])
         try:
@@ -327,7 +328,7 @@ class Table:
         except Exception as e:
             raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
 
-    def select_to_dataframe(self, engine, filter_by=None):
+    def select_to_dataframe(self, **kwargs):
         """
         Get data from engine (for example database) and return a dataframe with the data
 
@@ -338,12 +339,12 @@ class Table:
         Returns:
             (Dataframe) : of Pandas with the obtained data
         """
-        cols = [col.col_name for col in self.columns]
-        if len(self.get_primary_keys)==0:
-            cols.append(self.name+"_id")
-            df = pd.DataFrame(self.select(engine, filter_by), columns=cols)
-            return df[cols[:-1]]
-        return pd.DataFrame(self.select(engine, filter_by), columns=cols)
+        ResultSet = self.select(**kwargs)
+        df = pd.DataFrame(ResultSet, columns=ResultSet[0].keys())
+        if len(self.get_primary_keys())==0:
+            cols=[col for col in ResultSet[0].keys() if col!=self.name+"_id"]
+            return df[cols]
+        return df
 
     def insert(self, data, engine, debug=False):
         """
