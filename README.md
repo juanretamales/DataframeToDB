@@ -41,56 +41,9 @@ ______
 - SQLAlchemy>=1.4.9
 - **driver for db conection**
 
-## Example
+## Example - Save dataframe into database
 
 ___
-
-```python
-from dataframetodb import table
-import pandas as pd
-from datetime import datetime
-
-import pyodbc
-# Test Dataframe for insertion
-df = pd.DataFrame({
-    "Col1": [1, 2, 3],
-    "Col2": ["A", "B", "C"],
-    "Col3": [True, False, True],
-    "Col4": [datetime(2020,1,1),datetime(2020,1,2),datetime(2020,1,3)]
-})
-
-# Create a pyodbc connection
-conn = pyodbc.connect(
-    """
-    Driver={ODBC Driver 17 for SQL Server};
-    Server=localhost;
-    Database=my_database;
-    UID=my_user;
-    PWD=my_pass;
-    """
-)
-
-# You can use this optional function for asign type data to dataframe and use the best way the library
-df = toDB.refactor(df)
-
-# If a table is created, the generated sql is returned
-create_statement = toDB.save(df, "my_great_table", conn, if_exists="replace", custom={"Col1":"INT PRIMARY KEY"}, temp=False)
-
-# Commit upload actions and close connection
-conn.commit()
-conn.close()
-
-```
-
-## How to work
-
-The Table of DataframeToDB is a custom class who generate a SQLAlchemy Table when you call getTable function.
-
-## USAGE
-For more information, you can view [the documentation](https://github.com/juanretamales/DataframeToDB/blob/main/documentation.md) in [github](https://github.com/juanretamales/DataframeToDB) or view de documentation of code.
-___
-
-### Save dataframe into database
 
 ```python
 import pandas as pd
@@ -103,8 +56,80 @@ nametable = "nameTable"
 engine = dataframetodb.create_engine('sqlite:///{}.sqlite'.format(nametable)) #create engine for use SQLAlchemy
 df = pd.read_csv("./dataset/data.csv") # Get the DataFrame
 df = refactor(df) # Returns a dataframe with the correct dtype compatible with DataframeToDB.
-tabla = Table(name=nametable, df=df) #create Table instance
-tabla.toDb(df, engine, 'append') #insert data in database, in this example sqlite
+table_class = Table(name=nametable, df=df) #create Table instance
+table_class.toDb(df, engine, 'append') #insert data in database, in this example sqlite
+```
+
+## How to work
+
+The Table of DataframeToDB is a custom class who generate a SQLAlchemy Table when you call getTable function.
+
+## USAGE
+For more information, you can view [the documentation](https://github.com/juanretamales/DataframeToDB/blob/main/documentation.md) in [github](https://github.com/juanretamales/DataframeToDB) or view de documentation of code.
+___
+
+### Save data in database with toDB
+
+```python
+table_class.toDb(df.sample(50), engine, 'append')
+
+"""
+Insert data of dataframe into database (is necesary conection), and apply method for try create database Use insert function for add data to db
+
+Parameters:
+  df : the dataframe (the same estructure of this table)
+  engine : an Engine, which the Session will use for connection
+  method (str): apply rules before insert table. Aviables:
+    - 'append': create the table (if not exist)
+    - 'replace': drop and recreate the table (old data is erased)
+    - 'clean': clean all data with primary key coincide with the df (require implicit primary key or dataframe with tablename_id 				column)
+  debug : (bool) if true, show the debug message. Default: False
+
+if you not need apply any mehod, for better opcion, use 'append' method or use insert function 
+
+Returns:
+  None
+"""
+```
+
+
+
+### Get data of select into dataframe
+
+```python
+table_class.select_to_dataframe(engine=engine)
+"""
+Get data from engine (for example database) and return a dataframe with the data
+
+Parameters:
+	engine : (required) an Engine, which the Session will use for connection
+	(others): the parameters for select function
+
+Returns:
+	(Dataframe) : of Pandas with the obtained data
+"""
+```
+
+### Save table into JSON
+
+```python
+table_class.save_to_file()
+"""
+Save a dict value of this class (with getDict) in a file, the route of file is in self.file variable. 
+Default path is: .dataframeToDb/TableName.ToDB
+"""
+```
+
+### Load table into JSON
+
+```python
+table_class= Table(name="data_json")
+table_class.load_from_file(jsonpath)
+"""
+Set a table estructure in this class from a file, the file path is save in file param
+Parameters:
+	path : path of file from load table estructure
+"""
 ```
 
 inspired in fast-to-sql
