@@ -22,17 +22,18 @@ import numpy as np
 class Table:
     def __init__(self, **kwargs):
         """
-        name: (required) Name of table for saved in Database
-        df: (excluyent*) The Dataframe who you like get the Table estructure
-        columns: (excluyent*) A list of DataframeToDB.Columns class
-        file: You can set a file for save the estructure for future use
-        q_sample: Number of elements of the DataFrame to determine the type (only use if your define df param)
-        custom: a dict who use for determinate de column class, if use this, you need a estructure how the next example:
-            col_name: Name of column for saved in Table
-            col_df_name: Name of column of dataframe
-            type:
-            primary_key:
-            auto_increment:
+        name (str): (required) Name of table for saved in Database
+        df (Dataframe): (excluyent*) The Dataframe who you like get the Table estructure
+        columns (List): (excluyent*) A list of DataframeToDB.Columns class
+        file (str): You can set a file for save the estructure for future use
+        q_sample (int): Number of elements of the DataFrame to determine the type (only use if your define df param)
+        custom (dict): a dict who use for determinate de column class, if use this, you need a estructure how the next example with the column name in the index:
+            col_name (str): (required) Name of column for saved in Table
+            col_df_name (str): (optional) The column name of Dataframe who you like get the column estructure
+            type (str): (required)  type of column
+            primary_key (bool): (optional) you can set if the column is primary key
+            auto_increment (bool): (optional) you can set if this column is auto increment (only for Ingeger and BigInteger type)
+            nullable (bool): (optional)  you can set if this column can has a null values
             
         Note: required is necesary, excluyent* is mutualy excluyent, you can use only one or none
         """
@@ -55,8 +56,8 @@ class Table:
             else:
                 raise ValueError("A column it not a Column type class") 
 
-        self.name = kwargs.get('name', "NoName")
-        self.file=kwargs.get('file', None)
+        self.name = tryGet(kwargs, 'name', "NoName")
+        self.file = tryGet(kwargs, 'file', None)
         self.Base = declarative_base()
         if self.file==None:
             self.file=os.path.join('.dataframeToDb', str(self.name) + ".ToDB")
@@ -68,8 +69,13 @@ class Table:
         Parameters:
             df : (required) Dataframe
             q_sample: Number of elements of the DataFrame to determine the type (only use if your define df param)
-            custom: a dict who use for determinate de column class, if use this, you need a estructure how the next example:
-
+            custom (dict): (excluyent*) a dict who use for determinate de column class, if use this, you need a estructure how the next example with the column name in the index:
+                col_name (str): (required) Name of column for saved in Table
+                col_df_name (str): (optional) The column name of Dataframe who you like get the column estructure
+                type (str): (required)  type of column
+                primary_key (bool): (optional) you can set if the column is primary key
+                auto_increment (bool): (optional) you can set if this column is auto increment (only for Ingeger and BigInteger type)
+                nullable (bool): (optional)  you can set if this column can has a null values
         """
         df = tryGet(kwargs, 'df')
         q_sample = tryGet(kwargs, 'q_sample', len(df)) #despues aceptar parametro porcentaje, ejemplo 30% de los datos
@@ -162,6 +168,9 @@ class Table:
         """
         Returns a SqlAlchemy Table instance based in DataframeToDB Table
 
+        Parameters:
+            engine : (required) a SQLAlchemy engine
+
         Returns:
             (Table) : of SqlAlchemy with the columns of this class
         """
@@ -216,10 +225,10 @@ class Table:
 
     def load_from_file(self, path=None):
         """
-        Set a table estructure in this class from a file
+        Set a table estructure in this class from a file, the file path is save in file param
 
         Parameters:
-            path : path of file from load table estructure
+            path (str) : (optional) path of file from load table estructure
         """
         if path!=None:
             self.file = path
@@ -228,11 +237,17 @@ class Table:
             data={}
             with open(self.file) as f:
                 data = json.load(f)
-            self.load_from_JSON(data)
+            self.load_from_dict(data)
         except ValueError as e:
             raise ValueError("DataframeToDB: Error reading the file {}, message [{}]".format(path, e))
 
-    def load_from_JSON(self, json):
+    def load_from_dict(self, json):
+        """
+        Set a table estructure in this class from a dict, usually of a json generate of a save function
+
+        Parameters:
+            json (dict) : (required) dict with the structure of table
+        """
         if tryGet(json, "type")!="table":
             raise ValueError("DataframeToDB: Error, the data is not a table")
         if tryGet(json, "name", True, False):
@@ -255,17 +270,27 @@ class Table:
                 )
             )
 
+    def load_from_db(self, engine, ignore_error=False):
+        _meta = MetaData(bind=engine, reflect=True)
+        if tryGet(_meta.tables, self.name, False, True):
+            print("Table exists")
+        else:
+            if ignore_error==False:
+                raise ValueError("DataframeToDB: Error, the table not exist in db, test with ignore_error=True")
+            else:
+                print("DataframeToDB: Error, the table '[{}]' not exist in db, check database".format(self.name))
+
     def check_col_type(self, **kwargs):
         """
         Return a name of column type of SQLalchemy from examinated sample
 
         Parameters:
-            df : (required) Dataframe of examine
-            col : (required) Column name
-            q_sample: Number of elements of the DataFrame to determine the type (only use if your define df param)
+            df (dataframe): (required) The Dataframe who you like get the Table estructure
+            col (str): (required) Column name for analize
+            q_sample (int): (optional) Number of elements of the DataFrame to determine the type (only use if your define df param)
 
         Returns:
-            (results) : of SqlAlchemy query executed
+            (str) : name of SqlAlchemy column type
         """
         if tryGet(kwargs, "df", True, False):
             raise ValueError("Error, df is required.") 
@@ -322,11 +347,11 @@ class Table:
 
     def execute(self, engine, query):
         """
-        Get data from engine (for example database) and return a dataframe with the data
+        Execute a query with the engine and return the results
 
         Parameters:
             engine : (required) an Engine, which the Session will use for connection
-            query : a sqlalchemy query
+            query : (required) a sqlalchemy query
 
         Returns:
             (results) : of SqlAlchemy query executed
@@ -498,17 +523,19 @@ class Table:
                 dfTemp = df.drop_duplicates(subset=pkcols)
                 pk = self.get_primary_keys() #id of primarykeys
                 if len(pkcols)==1:
+                    # Get only primarys keys for clean
                     idpk=[]
                     if str(df.dtypes[pkcols[0]])=="string":
                         idpk = np.unique(["'{}'".format(i) for i in df[pkcols[0]]])
                     else:
                         idpk = np.unique([i for i in df[pkcols[0]]])
                     # drop any coincidence of dataframe cleaned
-                    result=session.query(tbl).filter(tbl[pk].in_(idpk)).delete()
+                    delRow=session.query(tbl).filter(tbl[pk].in_(idpk)).delete()
+                    result=session.execute(delRow) 
                     results.append(result)
                 else:
-                    minidf = df[pkcols] #pick the primary key cols
-                    for index, row in df.iterrows():
+                    df_pk_col = df[pkcols] #pick the primary key cols
+                    for index, row in df_pk_col.iterrows():
                         delRow = session.query(tbl).filter(**row.to_dict()).delete() #filter and delete for the cols
                         result = session.execute(delRow) 
                         results.append(result)
@@ -532,6 +559,7 @@ class Table:
                 - 'append': create the table (if not exist)
                 - 'replace': drop and recreate the table (old data is erased)
                 - 'clean': clean all data with primary key coincide with the df (require implicit primary key or dataframe with tablename_id column)
+            debug : (bool) if true, show the debug message. Default: False
             
         if you not need apply any mehod, for better opcion, use 'append' method or
         use insert function 
