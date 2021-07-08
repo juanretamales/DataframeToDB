@@ -454,15 +454,16 @@ class Table:
         if any error appears in the dataframe insert, apply rollback
 
         Parameters:
-            data : the dataframe (the same estructure of this table)
-            engine : an Engine, which the Session will use for connection
+            df (dataframe) : (required) the dataframe (the same estructure of this table)
+            engine : (required) an Engine, which the Session will use for connection
 
         Returns:
-            (Table) : of SqlAlchemy with the columns of this class
+            (array) : return an array of results of inserts
         """
         if not isinstance(df, pd.DataFrame):
             raise ValueError("Error, df is not dataframe.") 
         tbl = self.get_table(engine)
+        results = []
         with Session(engine) as session:
             session.begin()
             if debug:
@@ -470,20 +471,24 @@ class Table:
             try:
                 for index, row in df.iterrows():
                     newRow = tbl.insert().values(**row.to_dict())
-                    session.execute(newRow) 
+                    results.append(session.execute(newRow) )
             except Exception as e:
                 session.rollback()
-                raise ValueError("Error trying insert a element of dataframe, apply rollback, Erroe message [{}]".format(e)) 
+                results.append("Error trying insert a element of dataframe, apply rollback, Error message [{}]".format(e))
+                raise ValueError("Error trying insert a element of dataframe, apply rollback, Error message [{}]".format(e)) 
             session.commit()
+        return results
 
     def delete(self, data, engine, debug=False):
         """
         Delete data with primary key into database (is necesary conection),
-        if any error appears in the dataframe insert, apply rollback
+        if any error appears in the operation, apply rollback
 
         Parameters:
-            data : dict for filter the data. ex "id=3"
-            engine : an Engine, which the Session will use for connection
+            data (dict) : (required) dict for filter the data. ex "id=3"
+            engine : (required) an Engine, which the Session will use for connection
+        Returns:
+            (object) : return of query for delete elements of database
         """
         result=None
         tbl = self.get_table(engine)
@@ -502,11 +507,11 @@ class Table:
     def clean(self, df, engine, debug=False):
         """
         Clean data with primary key into database (is necesary conection),
-        if any error appears in the dataframe insert, apply rollback
+        if any error appears in the operation, apply rollback
 
         Parameters:
-            df : the dataframe (the same estructure of this table)
-            engine : an Engine, which the Session will use for connection
+            df (dataframe):(required) the dataframe (the same estructure of this table)
+            engine : (required) an Engine, which the Session will use for connection
         """
         tbl = self.get_table(engine)
         results=[]
@@ -553,40 +558,43 @@ class Table:
         Use insert function for add data to db
 
         Parameters:
-            df : the dataframe (the same estructure of this table)
-            engine : an Engine, which the Session will use for connection
-            method (str): apply rules before insert table. Aviables:
+            df (dataframe) : (required) the dataframe (the same estructure of this table)
+            engine : (required) an Engine, which the Session will use for connection
+            method (str): (optional) apply rules before insert table. Aviables:
                 - 'append': create the table (if not exist)
                 - 'replace': drop and recreate the table (old data is erased)
                 - 'clean': clean all data with primary key coincide with the df (require implicit primary key or dataframe with tablename_id column)
-            debug : (bool) if true, show the debug message. Default: False
+            debug (bool) : (optional) if true, show the debug message. Default: False
             
         if you not need apply any mehod, for better opcion, use 'append' method or
         use insert function 
 
         Returns:
-            None
+            (array) : results of operations
         """
         if not isinstance(df, pd.DataFrame):
             raise ValueError("Error, df is not dataframe.") 
         tbl = self.get_table(engine)
+        results=[]
         with Session(engine) as session:
             session.begin()
             try:
                 if method=="append":
-                    self.Base.metadata.tables[self.name].create(engine, checkfirst=True)
+                    results.append(self.Base.metadata.tables[self.name].create(engine, checkfirst=True))
                 if method=="replace":
-                    self.Base.metadata.tables[self.name].drop(engine, checkfirst=True) 
-                    self.Base.metadata.tables[self.name].create(engine, checkfirst=True)
+                    results.append(self.Base.metadata.tables[self.name].drop(engine, checkfirst=True) )
+                    results.append(self.Base.metadata.tables[self.name].create(engine, checkfirst=True))
                 if method=="clean":
-                   self.clean(df, engine)
+                   results.append(self.clean(df, engine))
 
-                self.dataframe_insert(df, engine, debug)
+                results.append(self.dataframe_insert(df, engine, debug))
             except Exception as e:
                 session.rollback()
+                results.append("Error trying insert a element of dataframe, apply rollback, Error message [{}]".format(e)) 
                 raise ValueError("Error trying insert a element of dataframe, apply rollback, Error message [{}]".format(e)) 
             else:
                 session.commit()
             session.commit()
+        return results
         
 

@@ -8,18 +8,18 @@ If you want to donate:  https://ko-fi.com/juanretamales
 
 ## Introduction
 
-note: for the moment, i create a function for tested the library, but i changed the way how to work because to use for controling a database and not only a table.
+`DataframeToDB` is an improved way to upload pandas dataframes to Microsoft SQL Server, MySQL, PostgreDB and support for other type of database.
+
+`DataframeToDB` takes advantage of SQLAlchemy. This allows for a much lighter weight import for writing pandas dataframes to db server. 
 
 When to use:
 
-- When you need save dataframes, for example when scraping a table
+- When you need save dataframes, for example when scraping many tables
 - You need shared a database estructure for use in proyects
+- When you need save multi excels (ported to dataframed) in a database
+- When you consider use FastAPI (With the SQLAlchemy compatibility) (Work in progress)
+- When you need create a estructure of table for any reason
 
-___
-
-`DataframeToDB` is an improved way to upload pandas dataframes to Microsoft SQL Server, MySQL, PostgreDB and support for other type of database.
-
-`DataframeToDB` takes advantage of  SQLAlchemy. This allows for a much lighter weight import for writing  pandas dataframes to db server. 
 
 ## Installation
 
@@ -66,76 +66,6 @@ The Table of DataframeToDB is a custom class who generate a SQLAlchemy Table whe
 
 ## USAGE
 For more information, you can view [the documentation](https://github.com/juanretamales/DataframeToDB/blob/main/documentation.md) in [github](https://github.com/juanretamales/DataframeToDB) or view de documentation of code.
-___
-
-### Save data in database with toDB
-
-```python
-table_class.toDb(df.sample(50), engine, 'append')
-
-"""
-Insert data of dataframe into database (is necesary conection), and apply method for try create database Use insert function for add data to db
-
-Parameters:
-  df : the dataframe (the same estructure of this table)
-  engine : an Engine, which the Session will use for connection
-  method (str): apply rules before insert table. Aviables:
-    - 'append': create the table (if not exist)
-    - 'replace': drop and recreate the table (old data is erased)
-    - 'clean': clean all data with primary key coincide with the df (require implicit primary key or dataframe with tablename_id 				column)
-  debug : (bool) if true, show the debug message. Default: False
-
-if you not need apply any mehod, for better opcion, use 'append' method or use insert function 
-
-Returns:
-  None
-"""
-```
-
-
-
-### Get data of select into dataframe
-
-```python
-table_class.select_to_dataframe(engine=engine)
-"""
-Get data from engine (for example database) and return a dataframe with the data
-
-Parameters:
-	engine : (required) an Engine, which the Session will use for connection
-	(others): the parameters for select function
-
-Returns:
-	(Dataframe) : of Pandas with the obtained data
-"""
-```
-
-### Save table into JSON
-
-```python
-table_class.save_to_file()
-"""
-Save a dict value of this class (with getDict) in a file, the route of file is in self.file variable. 
-Default path is: .dataframeToDb/TableName.ToDB
-"""
-```
-
-### Load table into JSON
-
-```python
-table_class= Table(name="data_json")
-table_class.load_from_file(jsonpath)
-"""
-Set a table estructure in this class from a file, the file path is save in file param
-Parameters:
-	path : path of file from load table estructure
-"""
-```
-
-inspired in fast-to-sql
-
-Thanx to:
-Joseph Astrahan for the answer in stackoverflow 
 
 ## FAQ
 
@@ -156,4 +86,4 @@ When y tested all function i like for a table, my plans is 0.X i create all func
 
 ### Cats or Dogs?
 
-Pandas!!!
+Pandas!!! ...ba dum tss...

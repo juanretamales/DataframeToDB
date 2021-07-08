@@ -1,12 +1,14 @@
 import setuptools
+from setuptools import setup, find_packages
 
+long_description=""
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-setuptools.setup(
+setup(
     name = 'dataframetodb',
     packages = ['dataframetodb'], 
-    version = '0.1',
+    version = '1.0',
     description = 'A conector for save dataframe to db and others utils with sqlalchemy',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -18,10 +20,10 @@ setuptools.setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: GNU GENERAL PUBLIC LICENSE",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-    download_url = 'https://github.com/juanretamales/DataframeToDB/tarball/0.1',
+    download_url = 'https://github.com/juanretamales/DataframeToDB/tarball/0.2',
     keywords = ['sqlalchemy', 'dataframe', 'to_sql', 'to_db', 'pandas'],
     install_requires=['pandas', 'numpy', 'python-dateutil', 'SQLAlchemy']
 )

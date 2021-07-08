@@ -27,9 +27,11 @@ The Table of DataframeToDB is a custom class who generate a SQLAlchemy Table whe
 
 ## When to use
 
-- When you need save dataframes, for example when scraping a table
+- When you need save dataframes, for example when scraping many tables
 - You need shared a database estructure for use in proyects
-- When you need save multi excels (ported to dataframed)
+- When you need save multi excels (ported to dataframed) in a database
+- When you consider use FastAPI (With the SQLAlchemy compatibility) (Work in progress)
+- When you need create a estructure of table for any reason
 
 ## Quick start
 
@@ -253,11 +255,77 @@ Returns:
 
 - (results) : of SqlAlchemy query executed
 
+### mytable.dataframe_insert
 
+```python
+mytable.dataframe_insert(df, engine)
+```
 
-### Others
+Insert data of dataframe into database (is necesary conection), if any error appears in the dataframe insert, apply rollback
 
-Functions are missing, but they are still in development or I have not had time to document them correctly yet
+Parameters:
+
+- df (dataframe) : (required) the dataframe (the same estructure of this table)
+- engine : (required) an Engine, which the Session will use for connection
+- debug (bool) : (optional) if True, show the log of insert the dataframe
+
+Returns:
+
+-  (array) : return an array of results of inserts
+
+### mytable.delete
+
+```
+mytable.delete({id=3}, engine)
+```
+
+Delete data with primary key into database (is necesary conection), if any error appears in the operation, apply rollback
+
+Parameters:
+
+- data (dict) : (required) dict for filter the data. ex "id=3"
+- engine : (required) an Engine, which the Session will use for connection
+
+Returns:
+
+- (object) : return of query for delete elements of database
+
+### mytable.clean
+
+```
+mytable.clean(df, engine)
+```
+
+Clean data with primary key into database (is necesary conection), if any error appears in the operation, apply rollback
+
+Parameters:
+
+- df (dataframe):(required) the dataframe (the same estructure of this table)
+- engine : (required) an Engine, which the Session will use for connection
+
+### mytable.toDb
+
+```
+mytable.toDb(df, engine)
+```
+
+Insert data of dataframe into database (is necesary conection), and apply method for try create database. Use insert function for add data to db
+
+Parameters:
+
+- df (dataframe) : (required) the dataframe (the same estructure of this table)
+- engine : (required) an Engine, which the Session will use for connection
+- method (str): (optional) apply rules before insert table. Aviables:
+  -  'append': create the table (if not exist)
+  - 'replace': drop and recreate the table (old data is erased)
+  - 'clean': clean all data with primary key coincide with the df (require implicit primary key or dataframe with tablename_id column)
+- debug (bool) : (optional) if true, show the debug message. Default: False
+
+if you not need apply any mehod, for better opcion, use 'append' method or use insert function 
+
+Returns:
+
+- (array) : results of operations
 
 ## DataframeToDB.Column
 
