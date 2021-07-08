@@ -23,7 +23,7 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-    download_url = 'https://github.com/juanretamales/DataframeToDB/tarball/0.2',
+    download_url = 'https://github.com/juanretamales/DataframeToDB/tarball/1.0',
     keywords = ['sqlalchemy', 'dataframe', 'to_sql', 'to_db', 'pandas'],
     install_requires=['pandas', 'numpy', 'python-dateutil', 'SQLAlchemy']
 )
