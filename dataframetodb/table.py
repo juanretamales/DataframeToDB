@@ -175,6 +175,8 @@ class Table:
             (Table) : of SqlAlchemy with the columns of this class
         """
         try: #revisa si tiene la tabla ya agregada a la Base y retorna esa en vez de crearla
+            self.meta = MetaData(bind=engine)
+            self.meta.reflect(bind=engine)
             if self.name in self.Base.metadata.tables.keys():
                 return self.Base.metadata.tables[self.name]
         except:
@@ -271,8 +273,8 @@ class Table:
             )
 
     def load_from_db(self, engine, ignore_error=False):
-        _meta = MetaData(bind=engine, reflect=True)
-        if tryGet(_meta.tables, self.name, False, True):
+        self.meta = MetaData(bind=engine, reflect=True)
+        if tryGet(self.meta.tables, self.name, False, True):
             print("Table exists")
         else:
             if ignore_error==False:
