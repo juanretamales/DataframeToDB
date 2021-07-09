@@ -2,6 +2,9 @@ from dateutil.parser import parse
 import json
 import numpy as np
 import pandas as pd
+from sqlalchemy.exc import ArgumentError
+from sqlalchemy.orm import class_mapper, object_mapper
+from sqlalchemy.orm.exc import UnmappedClassError, UnmappedInstanceError
 
 def is_date(string, fuzzy=False):
     """
@@ -185,3 +188,14 @@ def refactor(dfParam, estrict=False, debug=False):
 #         (bool): True if has Date values, or false in other case
 #     """
 #     return np.array(json.loads(string))
+
+def is_mapped_class(cls):
+    """
+    Function for validate if a object cls is a (correct) SQLAlchemy Model
+    """
+    try:
+        class_mapper(cls)
+    except (ArgumentError, UnmappedClassError):
+        return False
+    else:
+        return True

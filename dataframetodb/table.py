@@ -1,6 +1,6 @@
 # from dataframetodb import utils, column
 import sqlalchemy
-from dataframetodb.utils import tryGet, isTimeFromDatetime, isDateFromDatetime
+from dataframetodb.utils import tryGet, isTimeFromDatetime, isDateFromDatetime, is_mapped_class
 from dataframetodb.column import Column
 from sqlalchemy import Column as sqlCol
 from sqlalchemy import Integer
@@ -181,7 +181,15 @@ class Table:
                 return self.Base.metadata.tables[self.name]
         except:
             pass
-        return type(self.name, (self.Base,), self.get_dict_columns())
+        table = type(self.name, (self.Base,), self.get_dict_columns())
+        self.meta = MetaData(bind=engine)
+        self.meta.reflect(bind=engine)
+        if is_mapped_class(table):
+            return table
+        else:
+            raise ValueError("DataframeToDB: Error, the SQLAchemy table have problems")
+
+
 
     def get_dict(self):
         """
