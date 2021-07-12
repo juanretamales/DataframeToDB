@@ -7,7 +7,7 @@ from sqlalchemy import Integer
 
 from sqlalchemy import MetaData
 from sqlalchemy import Table as sqlTable
-from sqlalchemy import select, update, delete, values
+from sqlalchemy import select, update, delete, values, insert
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -446,7 +446,8 @@ class Table:
             if debug:
                 print("starting to save the data in the selected database, you can pray that it does not fail in the meantime")
             try:
-                newRow = tbl.insert().values(**data)
+                # newRow = tbl.insert().values(**data)
+                newRow = sqlalchemy.insert(tbl).values(**data)
                 session.execute(newRow) 
             except Exception as e:
                 session.rollback()
@@ -475,7 +476,7 @@ class Table:
                 print("starting to save the data in the selected database, you can pray that it does not fail in the meantime")
             try:
                 for index, row in df.iterrows():
-                    newRow = tbl.insert().values(**row.to_dict())
+                    newRow = sqlalchemy.insert(tbl).values(**row.to_dict())
                     results.append(session.execute(newRow) )
             except Exception as e:
                 session.rollback()
