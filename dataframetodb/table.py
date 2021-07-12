@@ -138,7 +138,7 @@ class Table:
         Returns:
             (dict) : dict for create SQLAlchemy table
         """
-        attr_dict={'__tablename__': self.name}
+        attr_dict={'__tablename__': self.name, "__abstract__ ": True}
         for col in self.columns:
             name, coldata = col.col_data()
             attr_dict[name] = coldata
@@ -174,14 +174,9 @@ class Table:
         Returns:
             (Table) : of SqlAlchemy with the columns of this class
         """
-        try: #revisa si tiene la tabla ya agregada a la Base y retorna esa en vez de crearla
-            self.meta = MetaData(bind=engine)
-            self.meta.reflect(bind=engine)
-            if self.name in self.Base.metadata.tables.keys():
-                return self.Base.metadata.tables[self.name]
-        except:
-            pass
-        table = type(self.name, (self.Base,), self.get_dict_columns())
+        attr_dict = self.get_dict_columns()
+        attr_dict['__table_args__'] = {'extend_existing': True}  #si existe no lo vuelve a crear
+        table = type(self.name, (self.Base,), attr_dict)
         self.meta = MetaData(bind=engine)
         self.meta.reflect(bind=engine)
         if is_mapped_class(table):
